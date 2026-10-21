@@ -1,5 +1,15 @@
 # 大肥鱼桌宠 · BigFishPet
 
+> ### ⚠️ 使用前必须先安装 `dsh-bigfish` 插件
+>
+> 这个桌宠**不打包任何角色素材**，宠物形象与动作全部来自本机已安装的 [dsh-bigfish](https://github.com/gosomea/dsh-bigfish) 插件。没装插件，程序能启动但**看不到宠物**。
+>
+> ```powershell
+> dsh plugin --profile web add dsh-bigfish
+> ```
+>
+> 装完重启 DeepSeek Harness，再看[第一节：前置要求](#一前置要求必须先装-dsh-和插件)。
+
 把 [dsh-bigfish](https://github.com/gosomea/dsh-bigfish) 的宠物搬到一个**独立的 Electron 窗口**里：无边框、透明、可置顶、点空白处自动穿透，不占用 DeepSeek Harness 的窗口。
 
 > **本仓库不包含任何角色美术素材。**

@@ -1,6 +1,13 @@
 BigFishPet（本仓库）不包含任何角色美术素材。
 角色素材由本程序在运行时从用户本机已安装的 dsh-bigfish 插件中读取，不随本仓库或其 Release 分发。
 
+例外说明：仓库内的图标文件
+  shell/resources/icon.png
+  shell/resources/tray.png
+  launcher/launcher.ico
+由图像生成工具制作、非手绘，用于程序标识与托盘显示。
+本仓库不主张对其中的角色形象拥有任何权利；如需商用或再分发，请自行确认权利来源。
+
 以下为上游 dsh-bigfish 的原始声明：
 
 dsh-bigfish is an independent community companion, not an official DeepSeek product.

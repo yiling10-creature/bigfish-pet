@@ -1,0 +1,55 @@
+{
+  "name": "bigfish-desktop-pet",
+  "version": "1.0.3",
+  "private": true,
+  "description": "大肥鱼桌宠 — standalone Electron desktop pet for dsh-bigfish",
+  "main": "main.cjs",
+  "author": "Yiling",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "pack:dir": "electron-builder --win --dir",
+    "pack:zip": "electron-builder --win zip",
+    "dist": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "44.9.2",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "studio.bigfish.desktop-pet",
+    "productName": "大肥鱼桌宠",
+    "executableName": "BigFishPet",
+    "copyright": "Yiling · dsh-bigfish contributors · Code MIT",
+    "asar": true,
+    "directories": {
+      "output": "../dist",
+      "buildResources": "resources"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "resources/pet.html",
+      "resources/tray.png",
+      "resources/icon.png",
+      "resources/LICENSE",
+      "resources/NOTICE",
+      "resources/third-party-licenses.txt"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "resources/icon.png",
+      "artifactName": "BigFishPet-${version}-${arch}.${ext}"
+    },
+    "portable": {
+      "artifactName": "BigFishPet-${version}-${arch}.${ext}"
+    }
+  }
+}

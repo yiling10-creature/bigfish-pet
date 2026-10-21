@@ -1,0 +1,127 @@
+# 大肥鱼桌宠 · BigFishPet
+
+把 [dsh-bigfish](https://github.com/gosomea/dsh-bigfish) 的宠物搬到一个**独立的 Electron 窗口**里：无边框、透明、可置顶、点空白处自动穿透，不占用 DeepSeek Harness 的窗口。
+
+> **本仓库不包含任何角色美术素材。**
+> 素材来自你自己机器上安装的 `dsh-bigfish` 插件，由程序在运行时读取。仓库里只有壳、启动器、构建脚本和文档。
+
+---
+
+## 一、前置要求（必须先装 DSH 和插件）
+
+这个桌宠**不是**开箱即用的独立应用 —— 它需要本机已经装好 DeepSeek Harness（DSH）以及 `dsh-bigfish` 插件，因为角色美术和数据都在插件里。
+
+### 1. 安装 DeepSeek Harness
+
+按官方说明安装 DSH（桌面版或 `dsh` CLI 均可）。装好后至少启动过一次，确保存在以下目录：
+
+```
+C:\Users\<你>\.dsh\profiles\<profile>\node_modules\dsh-bigfish\
+```
+
+### 2. 安装 dsh-bigfish 插件
+
+```powershell
+# 装到 Web 界面用的 profile（把 web 换成你实际在用的 profile 名，如 desktop）
+dsh plugin --profile web add dsh-bigfish
+```
+
+装完重启 Harness，右下角能看到宠物即算成功。
+
+### 3. 验证插件位置
+
+本程序按下面的顺序查找插件，找不到就会弹提示（不会白屏）：
+
+| 顺序 | 路径 | 说明 |
+| --- | --- | --- |
+| 1 | `%BIGFISH_PLUGIN_DIR%` 环境变量 | 手动指定，方便调试 |
+| 2 | `%USERPROFILE%\.dsh\profiles\desktop\node_modules\dsh-bigfish` | 桌面版默认 |
+| 3 | `%USERPROFILE%\.dsh\profiles\web\node_modules\dsh-bigfish` | Web profile |
+| 4 | `%USERPROFILE%\.dsh\profiles\*\node_modules\dsh-bigfish` | 其余 profile 兜底 |
+
+---
+
+## 二、素材是怎么读的
+
+**仓库里没有 pet.html，也没有任何 PNG。** 角色素材有两条来源，程序按顺序尝试：
+
+| 优先级 | 来源 | 内容 | 体积 |
+| --- | --- | --- | --- |
+| 1 | 已安装插件的 `lib/client.js` | 6 张图集的 base64 内嵌（`data:image/png;base64,…`） | 约 34 MB |
+| 2 | 用户自己 clone 的上游源码 `packs/classic/*.png` | 6 张原始 PNG | 约 12.5 MB |
+| — | 都没有 | 弹出说明 + 打开插件安装文档，不崩溃 | — |
+
+映射关系（**顺序固定，不要改**，详见 `docs/素材来源与读取.md`）：
+
+```
+bigfish-atlas.png    bigfish-motions.png   bigfish-signs.png
+bigfish-work.png     bigfish-quiet.png     bigfish-daily.png
+```
+
+---
+
+## 三、构建
+
+```powershell
+# 1) 安装壳的依赖
+cd shell
+npm ci
+
+# 2) 生成 pet.html（从上游源码构建，产物不进仓库）
+cd ..
+pwsh -File scripts\build-pet.ps1
+
+# 3) 打包（便携版 portable，输出到 ..\dist）
+cd shell
+npm run dist
+```
+
+`scripts\build-pet.ps1` 会做三件事：浅克隆上游 `dsh-bigfish` 到一个临时目录 → 跑上游的 `scripts/build-desktop.ts` → 把生成的 `pet.html` 放进 `shell\resources\`。
+
+> 产物 `shell\resources\pet.html`、`dist\`、`node_modules\` 全部在 `.gitignore` 里，**不要提交**。
+
+## 四、运行
+
+```powershell
+cd shell
+npm start
+```
+
+| 操作 | 说明 |
+| --- | --- |
+| 左键托盘图标 | 显示 / 隐藏 |
+| 右键托盘图标 | 置顶、自动演示、手动状态、重置位置、设置、退出 |
+| 点宠物身体 | 交互（空白区域自动穿透到桌面） |
+| 设置窗口 | 角色库、动作档位、台词、鞭策开关 |
+
+## 五、当前状态
+
+| 项 | 状态 |
+| --- | --- |
+| Electron 壳（透明/置顶/穿透/托盘/设置） | ✅ 可用 |
+| 便携版打包 + C# 启动器 | ✅ 可用 |
+| 构建脚本（从上游生成 pet.html） | ✅ 可用 |
+| **素材运行时读取（不再内嵌）** | 🚧 计划中，见 `docs/素材来源与读取.md` |
+
+未完成改造前，`pet.html` 仍由上游构建脚本生成、内部带着图集，也就是说**你打出来的安装包仍然包含素材**。改成运行时读取后，安装包可从约 180 MB 降到约 60 MB，并且仓库与产物都不再携带角色美术。
+
+## 六、许可与声明
+
+- 本仓库代码：MIT（见 `LICENSE`）
+- **角色美术**：归原权利人所有。`NOTICE` 保留了上游声明原文 —— *"The code MIT license does not license underlying third-party character rights."*
+- 本程序只在本地读取用户已安装插件中的素材，**不随仓库或 Release 分发**。
+- 若要商用或大规模分发，请自行取得素材权利人的授权。
+
+## 七、常见问题
+
+**双击没反应 / 一闪而过？**
+看 `%APPDATA%\BigFishPet\` 下有没有日志；启动器会在 `bigfish-profile\` 里写 debug 日志。
+
+**提示找不到插件？**
+先按第一节装 `dsh-bigfish`，或用 `BIGFISH_PLUGIN_DIR` 直接指向插件目录再启动。
+
+**SmartScreen 警告"未知发布者"？**
+exe 未做代码签名，属正常现象。自用点"更多信息 → 仍要运行"。
+
+**能不能反映我正在跑的任务？**
+当前是演示模式（自动轮播 待机/思考/输出/工具执行/等待确认/完成）。接实时任务需要额外对接 DSH 会话接口，尚未实现。

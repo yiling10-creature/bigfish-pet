@@ -1,0 +1,16 @@
+# 依赖与产物
+node_modules/
+dist/
+out/
+*.zip
+
+# 构建生成的宠物页（含素材，绝不提交）
+shell/resources/pet.html
+
+# 启动器编译产物
+launcher/out/
+
+# 本地配置与日志
+*.log
+bigfish-profile/
+.env

@@ -1,6 +1,6 @@
 {
   "name": "bigfish-desktop-pet",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "private": true,
   "description": "大肥鱼桌宠 — standalone Electron desktop pet for dsh-bigfish",
   "main": "main.cjs",
@@ -52,6 +52,12 @@
     },
     "portable": {
       "artifactName": "BigFishPet-${version}-${arch}.${ext}"
-    }
+    },
+    "extraFiles": [
+      {
+        "to": "大肥鱼桌宠.exe",
+        "from": "../launcher/out/BigFishPetLauncher.exe"
+      }
+    ]
   }
 }

@@ -56,9 +56,30 @@ let hoverLock = false;
 let hoverLockOutsideAt = 0;
 
 const debugLogPath = process.env.BIGFISH_DEBUG_LOG;
+const bootTracePath = path.join(os.tmpdir(), 'bigfish-boot.log');
+function writeTrace(...args) {
+  const line = `${new Date().toISOString()} ${args.map(value => (typeof value === 'string' ? value : JSON.stringify(value))).join(' ')}\n`;
+  try {
+    fs.appendFileSync(bootTracePath, line);
+  } catch {
+    /* best effort */
+  }
+  console.log(line.trim());
+}
+try {
+  fs.writeFileSync(bootTracePath, `--- ${new Date().toISOString()} boot ---\n`);
+} catch {
+  /* best effort */
+}
+process.on('uncaughtException', error => {
+  writeTrace('UNCAUGHT', error?.stack || String(error));
+});
+process.on('unhandledRejection', reason => {
+  writeTrace('REJECTED', String(reason));
+});
 function logLine(...args) {
   const text = args.map(value => (typeof value === 'string' ? value : JSON.stringify(value))).join(' ');
-  console.log(text);
+  writeTrace('LOG', text);
   if (debugLogPath) {
     try {
       fs.appendFileSync(debugLogPath, `${new Date().toISOString()} ${text}\n`);
@@ -99,16 +120,42 @@ function assetsFromDirectory(dir) {
   return map;
 }
 
+// 在 34 MB 的 bundle 上不要用「超长量词」正则：V8 的递归回溯会爆栈
+// （实测 "Maximum call stack size exceeded"）。改为逐字符扫描 base64 段。
+const PNG_PREFIX = 'data:image/png;base64,';
+const ZIP_MAGIC = 'UEsDBB';
+const BASE64_CHARS = new Set(
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=',
+);
+
+function scanBase64End(text, from) {
+  let index = from;
+  while (index < text.length && BASE64_CHARS.has(text[index])) index++;
+  return index;
+}
+
 function assetsFromBundle(file) {
-  const text = fs.readFileSync(file, 'utf8');
-  const pngs = [...text.matchAll(/data:image\/png;base64,[A-Za-z0-9+/=]+/g)].map(match => match[0]);
+  // 以 latin1 读取：base64 全是 ASCII，避免 34 MB 的 UTF-8 解码开销
+  const text = fs.readFileSync(file, 'latin1');
+  const pngs = [];
+  let cursor = text.indexOf(PNG_PREFIX);
+  while (cursor >= 0 && pngs.length < ASSET_NAMES.length) {
+    const end = scanBase64End(text, cursor + PNG_PREFIX.length);
+    if (end > cursor + PNG_PREFIX.length) pngs.push(text.slice(cursor, end));
+    cursor = text.indexOf(PNG_PREFIX, end);
+  }
   if (pngs.length < ASSET_NAMES.length) return null;
   const map = {};
   ASSET_NAMES.forEach((name, index) => {
     map[name] = pngs[index];
   });
-  const playful = /UEsDBB[A-Za-z0-9+/=]{1000,}/.exec(text);
-  if (playful) map.playful = 'data:application/octet-stream;base64,' + playful[0];
+  const zipStart = text.indexOf(ZIP_MAGIC);
+  if (zipStart >= 0) {
+    const zipEnd = scanBase64End(text, zipStart + ZIP_MAGIC.length);
+    if (zipEnd - zipStart > 1000) {
+      map.playful = 'data:application/octet-stream;base64,' + text.slice(zipStart, zipEnd);
+    }
+  }
   return map;
 }
 
@@ -130,16 +177,24 @@ function pluginDirectories() {
 }
 
 function resolvePetAssets() {
+  const attempts = [];
   const dir = process.env.BIGFISH_PET_ASSETS;
-  if (dir && fs.existsSync(dir)) {
-    const map = assetsFromDirectory(dir);
-    if (map) {
-      logLine('ASSETS_DIRECTORY', dir);
-      return map;
+  if (dir) {
+    attempts.push(`目录 ${dir}: ${fs.existsSync(dir) ? '存在' : '不存在'}`);
+    if (fs.existsSync(dir)) {
+      const map = assetsFromDirectory(dir);
+      if (map) {
+        logLine('ASSETS_DIRECTORY', dir);
+        return map;
+      }
+      attempts.push('  目录里缺少 6 张 PNG');
     }
+  } else {
+    attempts.push('环境变量 BIGFISH_PET_ASSETS 未设置');
   }
   for (const plugin of pluginDirectories()) {
     const bundle = path.join(plugin, 'lib', 'client.js');
+    attempts.push(`插件 ${plugin}: ${fs.existsSync(bundle) ? '找到 client.js' : '没有 client.js'}`);
     if (!fs.existsSync(bundle)) continue;
     try {
       const map = assetsFromBundle(bundle);
@@ -147,17 +202,20 @@ function resolvePetAssets() {
         logLine('ASSETS_PLUGIN', plugin);
         return map;
       }
+      attempts.push('  client.js 里没抽出 6 张图集');
     } catch (error) {
+      attempts.push(`  读取失败: ${error.message}`);
       logLine('ASSETS_PLUGIN_FAILED', plugin, error.message);
     }
   }
   const sourceRoots = [
     process.env.BIGFISH_UPSTREAM,
     path.join(path.dirname(process.execPath), 'bigfish-source'),
-    path.join(os.homedir(), 'bigfish-pet', 'source'),
+    path.join(os.homedir(), 'Desktop', 'bigfish-pet', 'source'),
   ].filter(Boolean);
   for (const root of sourceRoots) {
     const sprites = path.join(root, 'assets', 'sprites');
+    attempts.push(`源码 ${sprites}: ${fs.existsSync(sprites) ? '存在' : '不存在'}`);
     if (!fs.existsSync(sprites)) continue;
     const map = assetsFromDirectory(sprites);
     if (!map) continue;
@@ -169,6 +227,7 @@ function resolvePetAssets() {
     return map;
   }
   logLine('ASSETS_MISSING');
+  globalThis.__ASSET_ATTEMPTS__ = attempts;
   return null;
 }
 
@@ -546,8 +605,15 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(() => {
-    petAssets = resolvePetAssets();
+    writeTrace('READY');
+    try {
+      petAssets = resolvePetAssets();
+    } catch (error) {
+      writeTrace('ASSETS_THROW', error.stack || error.message);
+      petAssets = null;
+    }
     if (!petAssets) {
+      writeTrace('ASSETS_NULL');
       dialog.showMessageBoxSync({
         type: 'error',
         title: '缺少宠物素材',
@@ -556,7 +622,8 @@ if (!app.requestSingleInstanceLock()) {
           '这个桌宠不打包角色美术，需要本机已安装 dsh-bigfish 插件。\n\n' +
           '请在命令行执行：\n    dsh plugin --profile web add dsh-bigfish\n\n' +
           '或者用环境变量 BIGFISH_PET_ASSETS 指向包含 6 张 PNG 的目录后重试。\n' +
-          '详见 README 第一节与 docs/素材来源与读取.md。',
+          '详见 README 第一节与 docs/素材来源与读取.md。\n\n' +
+          '排查记录：\n' + (globalThis.__ASSET_ATTEMPTS__ || []).slice(0, 8).join('\n'),
         buttons: ['退出'],
         noLink: true,
       });

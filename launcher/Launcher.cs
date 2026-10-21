@@ -9,8 +9,8 @@ using System.Windows.Forms;
 [assembly: AssemblyCompany("Yiling")]
 [assembly: AssemblyProduct("BigFish Desktop Pet")]
 [assembly: AssemblyCopyright("MIT - Yiling")]
-[assembly: AssemblyFileVersion("1.0.6.0")]
-[assembly: AssemblyVersion("1.0.6.0")]
+[assembly: AssemblyFileVersion("1.0.7.0")]
+[assembly: AssemblyVersion("1.0.7.0")]
 
 static class Program
 {
@@ -28,25 +28,36 @@ static class Program
         }
     }
 
+    static string FindCore(string dir)
+    {
+        string[] names = { "BigFishPet-Core.exe", "BigFishPet.exe", "大肥鱼桌宠-Core.exe" };
+        foreach (string name in names)
+        {
+            string candidate = Path.Combine(dir, name);
+            if (File.Exists(candidate)) return candidate;
+        }
+        return null;
+    }
     [STAThread]
     static void Main()
     {
         string dir = AppDomain.CurrentDomain.BaseDirectory;
-        string exe = Path.Combine(dir, "BigFishPet-Core.exe");
-        Log("start dir=" + dir);
+        string exe = FindCore(dir);
+        Log("start dir=" + dir + " core=" + (exe ?? "null"));
 
-        if (!File.Exists(exe))
+        if (exe == null)
         {
             Log("missing core exe");
             MessageBox.Show(
-                "找不到 BigFishPet-Core.exe，请确认整个文件夹已完整解压。",
+                "找不到 BigFishPet.exe，请确认整个文件夹已完整解压。",
                 "大肥鱼桌宠",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
             return;
         }
 
-        if (Process.GetProcessesByName("BigFishPet-Core").Length > 0)
+        string coreName = Path.GetFileNameWithoutExtension(exe);
+        if (Process.GetProcessesByName(coreName).Length > 0)
         {
             Log("core already running, exit");
             return;

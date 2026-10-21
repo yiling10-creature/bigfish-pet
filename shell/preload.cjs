@@ -1,5 +1,16 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// 宠物素材由主进程解析（插件 / 指定目录 / 上游源码），在这里同步注入页面。
+// 页面里的 sprite-assets 会优先读 window.__BIGFISH_ASSETS__，缺失时给出明确提示。
+try {
+  const assets = ipcRenderer.sendSync('bigfish:assets');
+  if (assets && Object.keys(assets).length) {
+    contextBridge.exposeInMainWorld('__BIGFISH_ASSETS__', assets);
+  }
+} catch (error) {
+  console.error('asset bridge failed:', error.message);
+}
+
 contextBridge.exposeInMainWorld('desktopPet', {
   setHotspots: list => ipcRenderer.send('desktop-pet:hotspots', list),
   setInteractiveLock: locked => ipcRenderer.send('desktop-pet:interactive-lock', Boolean(locked)),

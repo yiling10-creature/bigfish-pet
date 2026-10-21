@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, screen, shell } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, Menu, Tray, nativeImage, screen, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { createDeepSeek } = require('./deepseek.cjs');
@@ -69,6 +69,111 @@ function logLine(...args) {
 }
 
 const deepseek = userData ? createDeepSeek({ userData, log: logLine }) : null;
+
+// ---------------------------------------------------------------------------
+// 宠物素材：不随安装包分发，运行时从本机已安装的 dsh-bigfish 插件读取。
+//   1) BIGFISH_PET_ASSETS 指定的目录（6 张 PNG，可选 playful.dshpet）
+//   2) 插件 lib/client.js 里的内联资源（6 个 PNG data URL + 1 个 base64 扩展包）
+//   3) 本地上游源码 assets/sprites 与 packs/playful（开发机常见）
+// ---------------------------------------------------------------------------
+const ASSET_NAMES = [
+  'bigfish-atlas.png',
+  'bigfish-motions.png',
+  'bigfish-signs.png',
+  'bigfish-work.png',
+  'bigfish-quiet.png',
+  'bigfish-daily.png',
+];
+
+function assetsFromDirectory(dir) {
+  const map = {};
+  for (const name of ASSET_NAMES) {
+    const file = path.join(dir, name);
+    if (!fs.existsSync(file)) return null;
+    map[name] = 'data:image/png;base64,' + fs.readFileSync(file).toString('base64');
+  }
+  const playful = path.join(dir, 'playful.dshpet');
+  if (fs.existsSync(playful)) {
+    map.playful = 'data:application/octet-stream;base64,' + fs.readFileSync(playful).toString('base64');
+  }
+  return map;
+}
+
+function assetsFromBundle(file) {
+  const text = fs.readFileSync(file, 'utf8');
+  const pngs = [...text.matchAll(/data:image\/png;base64,[A-Za-z0-9+/=]+/g)].map(match => match[0]);
+  if (pngs.length < ASSET_NAMES.length) return null;
+  const map = {};
+  ASSET_NAMES.forEach((name, index) => {
+    map[name] = pngs[index];
+  });
+  const playful = /UEsDBB[A-Za-z0-9+/=]{1000,}/.exec(text);
+  if (playful) map.playful = 'data:application/octet-stream;base64,' + playful[0];
+  return map;
+}
+
+function pluginDirectories() {
+  const list = [];
+  if (process.env.BIGFISH_PLUGIN_DIR) list.push(process.env.BIGFISH_PLUGIN_DIR);
+  const profiles = path.join(os.homedir(), '.dsh', 'profiles');
+  try {
+    const entries = fs.readdirSync(profiles, { withFileTypes: true });
+    const preferred = ['desktop', 'web'];
+    entries
+      .map(entry => entry.name)
+      .sort((a, b) => (preferred.indexOf(a) + 1 || 99) - (preferred.indexOf(b) + 1 || 99))
+      .forEach(name => list.push(path.join(profiles, name, 'node_modules', 'dsh-bigfish')));
+  } catch {
+    /* 没有安装 DSH 时静默跳过 */
+  }
+  return list;
+}
+
+function resolvePetAssets() {
+  const dir = process.env.BIGFISH_PET_ASSETS;
+  if (dir && fs.existsSync(dir)) {
+    const map = assetsFromDirectory(dir);
+    if (map) {
+      logLine('ASSETS_DIRECTORY', dir);
+      return map;
+    }
+  }
+  for (const plugin of pluginDirectories()) {
+    const bundle = path.join(plugin, 'lib', 'client.js');
+    if (!fs.existsSync(bundle)) continue;
+    try {
+      const map = assetsFromBundle(bundle);
+      if (map) {
+        logLine('ASSETS_PLUGIN', plugin);
+        return map;
+      }
+    } catch (error) {
+      logLine('ASSETS_PLUGIN_FAILED', plugin, error.message);
+    }
+  }
+  const sourceRoots = [
+    process.env.BIGFISH_UPSTREAM,
+    path.join(path.dirname(process.execPath), 'bigfish-source'),
+    path.join(os.homedir(), 'bigfish-pet', 'source'),
+  ].filter(Boolean);
+  for (const root of sourceRoots) {
+    const sprites = path.join(root, 'assets', 'sprites');
+    if (!fs.existsSync(sprites)) continue;
+    const map = assetsFromDirectory(sprites);
+    if (!map) continue;
+    const playful = path.join(root, 'packs', 'playful', 'bundle.dshpet');
+    if (fs.existsSync(playful)) {
+      map.playful = 'data:application/octet-stream;base64,' + fs.readFileSync(playful).toString('base64');
+    }
+    logLine('ASSETS_SOURCE', root);
+    return map;
+  }
+  logLine('ASSETS_MISSING');
+  return null;
+}
+
+let petAssets = null;
+
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -441,6 +546,26 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(() => {
+    petAssets = resolvePetAssets();
+    if (!petAssets) {
+      dialog.showMessageBoxSync({
+        type: 'error',
+        title: '缺少宠物素材',
+        message: '没有找到角色素材。',
+        detail:
+          '这个桌宠不打包角色美术，需要本机已安装 dsh-bigfish 插件。\n\n' +
+          '请在命令行执行：\n    dsh plugin --profile web add dsh-bigfish\n\n' +
+          '或者用环境变量 BIGFISH_PET_ASSETS 指向包含 6 张 PNG 的目录后重试。\n' +
+          '详见 README 第一节与 docs/素材来源与读取.md。',
+        buttons: ['退出'],
+        noLink: true,
+      });
+      app.quit();
+      return;
+    }
+    ipcMain.on('bigfish:assets', event => {
+      event.returnValue = petAssets ?? {};
+    });
     createWindow();
     const icon = nativeImage.createFromPath(path.join(__dirname, 'resources', 'tray.png'));
     tray = new Tray(icon);

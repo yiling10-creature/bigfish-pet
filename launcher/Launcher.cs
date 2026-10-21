@@ -9,8 +9,8 @@ using System.Windows.Forms;
 [assembly: AssemblyCompany("Yiling")]
 [assembly: AssemblyProduct("BigFish Desktop Pet")]
 [assembly: AssemblyCopyright("MIT - Yiling")]
-[assembly: AssemblyFileVersion("1.0.3.0")]
-[assembly: AssemblyVersion("1.0.3.0")]
+[assembly: AssemblyFileVersion("1.0.6.0")]
+[assembly: AssemblyVersion("1.0.6.0")]
 
 static class Program
 {

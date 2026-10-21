@@ -94,7 +94,22 @@ npm start
 | 点宠物身体 | 交互（空白区域自动穿透到桌面） |
 | 设置窗口 | 角色库、动作档位、台词、鞭策开关 |
 
-## 五、当前状态
+## 五、内置 DeepSeek 对话（1.0.6 起）
+
+桌宠带了一个可选的对话面板，用自己的 DeepSeek API Key 即可让宠物直接回答问题、必要时联网搜索。
+
+| 项 | 说明 |
+| --- | --- |
+| 模型 | `deepseek-flash`（默认）、`deepseek-v4-pro` |
+| API 地址 | `https://api.deepseek.com`，可用环境变量 `BIGFISH_DEEPSEEK_BASE` 覆盖 |
+| Key 存放 | `%APPDATA%\BigFishPet\deepseek.json`，**经操作系统 `safeStorage` 加密后**存 base64，不落明文 |
+| 日志 | 只记 `DEEPSEEK_KEY_SAVED` / `DEEPSEEK_KEY_DECRYPT_FAILED` 这类事件，**不打印 Key** |
+| 联网范围 | 除 `api.deepseek.com` 外只做检索请求，不把 Key 发给第三方 |
+| 未配置时 | 面板提示去设置里填 Key，宠物其余功能不受影响 |
+
+IPC 侧做了来源校验（`trustedConfigSender`），只有主窗口和设置窗口能读写配置，第三方页面调不到。想彻底关掉对话功能，不填 Key 即可。
+
+## 六、当前状态
 
 | 项 | 状态 |
 | --- | --- |
@@ -105,14 +120,14 @@ npm start
 
 未完成改造前，`pet.html` 仍由上游构建脚本生成、内部带着图集，也就是说**你打出来的安装包仍然包含素材**。改成运行时读取后，安装包可从约 180 MB 降到约 60 MB，并且仓库与产物都不再携带角色美术。
 
-## 六、许可与声明
+## 七、许可与声明
 
 - 本仓库代码：MIT（见 `LICENSE`）
 - **角色美术**：归原权利人所有。`NOTICE` 保留了上游声明原文 —— *"The code MIT license does not license underlying third-party character rights."*
 - 本程序只在本地读取用户已安装插件中的素材，**不随仓库或 Release 分发**。
 - 若要商用或大规模分发，请自行取得素材权利人的授权。
 
-## 七、常见问题
+## 八、常见问题
 
 **双击没反应 / 一闪而过？**
 看 `%APPDATA%\BigFishPet\` 下有没有日志；启动器会在 `bigfish-profile\` 里写 debug 日志。

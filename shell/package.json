@@ -1,6 +1,6 @@
 {
   "name": "bigfish-desktop-pet",
-  "version": "1.0.3",
+  "version": "1.0.6",
   "private": true,
   "description": "大肥鱼桌宠 — standalone Electron desktop pet for dsh-bigfish",
   "main": "main.cjs",
@@ -28,6 +28,8 @@
     },
     "files": [
       "main.cjs",
+      "deepseek.cjs",
+      "web-search.cjs",
       "preload.cjs",
       "resources/pet.html",
       "resources/tray.png",

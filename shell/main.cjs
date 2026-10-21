@@ -1,6 +1,7 @@
-const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, screen, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const { createDeepSeek } = require('./deepseek.cjs');
 
 const os = require('node:os');
 function chooseUserData() {
@@ -66,6 +67,8 @@ function logLine(...args) {
     }
   }
 }
+
+const deepseek = userData ? createDeepSeek({ userData, log: logLine }) : null;
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -323,6 +326,89 @@ if (!app.requestSingleInstanceLock()) {
     sendCommand({ type: 'refresh' });
   });
 
+  function trustedConfigSender(event) {
+    return Boolean(
+      (win && !win.isDestroyed() && event.sender === win.webContents) ||
+      (settingsWin && !settingsWin.isDestroyed() && event.sender === settingsWin.webContents),
+    );
+  }
+
+  ipcMain.handle('deepseek:status', event => {
+    if (!trustedConfigSender(event)) return { ok: false, message: 'unauthorized' };
+    if (!deepseek) return { ok: false, message: 'DeepSeek 配置不可用。' };
+    return { ok: true, ...deepseek.status() };
+  });
+
+  ipcMain.handle('deepseek:save', (event, config) => {
+    if (!trustedConfigSender(event)) return { ok: false, message: 'unauthorized' };
+    if (!deepseek) return { ok: false, message: 'DeepSeek 配置不可用。' };
+    try {
+      return {
+        ok: true,
+        ...deepseek.save({
+          key: typeof config?.key === 'string' ? config.key : '',
+          model: typeof config?.model === 'string' ? config.model : '',
+          pricing: config?.pricing,
+        }),
+      };
+    } catch (error) {
+      return { ok: false, message: error.message };
+    }
+  });
+
+  ipcMain.handle('deepseek:clear', event => {
+    if (!trustedConfigSender(event)) return { ok: false, message: 'unauthorized' };
+    if (!deepseek) return { ok: false, message: 'DeepSeek 配置不可用。' };
+    return { ok: true, ...deepseek.clear() };
+  });
+
+  ipcMain.handle('deepseek:test', async event => {
+    if (!trustedConfigSender(event)) return { ok: false, message: 'unauthorized' };
+    if (!deepseek) return { ok: false, message: 'DeepSeek 配置不可用。' };
+    return deepseek.test();
+  });
+
+  ipcMain.on('deepseek:chat', (event, payload) => {
+    if (!win || event.sender !== win.webContents || !deepseek) return;
+    const id = typeof payload?.id === 'string' ? payload.id.slice(0, 80) : '';
+    if (!id) return;
+    const messages = Array.isArray(payload?.messages) ? payload.messages : [];
+    deepseek.streamChat({
+      id,
+      messages,
+      search: Boolean(payload?.search),
+      onEvent: message => {
+        if (!event.sender.isDestroyed()) event.sender.send('deepseek:event', message);
+      },
+    }).catch(error => logLine('DEEPSEEK_STREAM_ERROR', error.message));
+  });
+
+  ipcMain.on('deepseek:stop', (event, id) => {
+    if (!win || event.sender !== win.webContents || !deepseek) return;
+    if (typeof id === 'string') deepseek.stop(id);
+  });
+
+  ipcMain.handle('desktop-pet:open-external', async (event, rawUrl) => {
+    if (!trustedConfigSender(event)) return { ok: false, message: 'unauthorized' };
+    const text = typeof rawUrl === 'string' ? rawUrl.trim().slice(0, 2048) : '';
+    let url;
+    try {
+      url = new URL(text);
+    } catch {
+      return { ok: false, message: '链接格式不正确。' };
+    }
+    if ((url.protocol !== 'http:' && url.protocol !== 'https:') || url.username || url.password) {
+      return { ok: false, message: '只能打开网页链接。' };
+    }
+    try {
+      await shell.openExternal(url.toString());
+      return { ok: true };
+    } catch (error) {
+      logLine('OPEN_EXTERNAL_FAILED', error.message);
+      return { ok: false, message: '无法打开链接。' };
+    }
+  });
+
   ipcMain.on('desktop-pet:context-menu', event => {
     if (!win || event.sender !== win.webContents) return;
     Menu.buildFromTemplate([
@@ -374,7 +460,10 @@ if (!app.requestSingleInstanceLock()) {
     });
   });
 
-  app.on('before-quit', () => { quitting = true; });
+  app.on('before-quit', () => {
+    quitting = true;
+    deepseek?.dispose();
+  });
   app.on('window-all-closed', () => {
     if (quitting) app.quit();
   });

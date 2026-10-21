@@ -75,21 +75,35 @@ bigfish-work.png     bigfish-quiet.png     bigfish-daily.png
 
 ## 三、构建
 
+一条命令（推荐）：
+
+```powershell
+pwsh -File scripts\build-package.ps1
+```
+
+它会依次完成：编译 `launcher\Launcher.cs` → 生成 `shell\resources\pet.html`（缺省或体积异常时）→ `electron-builder` 打包 → **校验 zip 里确实带上了新编译的启动器**。
+
+分步做也一样：
+
 ```powershell
 # 1) 安装壳的依赖
 cd shell
 npm ci
 
-# 2) 生成 pet.html（从上游源码构建，产物不进仓库）
+# 2) 编译启动器（C#，需要 .NET Framework 的 csc.exe）
 cd ..
+pwsh -File launcher\build-launcher.ps1
+
+# 3) 生成 pet.html（从上游源码构建，产物不进仓库）
 pwsh -File scripts\build-pet.ps1
 
-# 3) 打包（便携版 portable，输出到 ..\dist）
-cd shell
-npm run dist
+# 4) 打包并校验
+pwsh -File scripts\build-package.ps1 -SkipLauncher -SkipPet
 ```
 
-`scripts\build-pet.ps1` 会做三件事：浅克隆上游 `dsh-bigfish` 到一个临时目录 → 跑上游的 `scripts/build-desktop.ts` → 把生成的 `pet.html` 放进 `shell\resources\`。
+`scripts\build-pet.ps1` 会做四件事：浅克隆上游 `dsh-bigfish` 到临时目录 → 应用 `patches\` 下的素材剥离补丁 → 跑上游的 `scripts/build-desktop.ts` → 校验产物体积（> 3 MB 视为失败）。
+
+> ⚠️ **启动器必须先编译再打包**。`electron-builder` 的 `extraFiles` 固定从 `launcher\out\BigFishPetLauncher.exe` 取文件，编了新版本的 `Launcher.cs` 却没重新编译，打出来的包里还是旧的 —— 这个坑踩过一次。
 
 > 产物 `shell\resources\pet.html`、`dist\`、`node_modules\` 全部在 `.gitignore` 里，**不要提交**。
 
@@ -106,6 +120,10 @@ npm start
 | 右键托盘图标 | 置顶、自动演示、手动状态、重置位置、设置、退出 |
 | 点宠物身体 | 交互（空白区域自动穿透到桌面） |
 | 设置窗口 | 角色库、动作档位、台词、鞭策开关 |
+
+打包后请双击 **`大肥鱼桌宠.exe`**（启动器），不要直接双击 `BigFishPet.exe`：
+
+启动器会先正常拉起核心，**若 1.5 秒内退出则自动加 `--no-sandbox` 重试**。部分 Windows 环境下 Chromium 沙箱初始化会失败（退出码 `0x80000003`），必须靠这个重试才能起来 —— 直接双击核心 exe 就会"没反应"。
 
 ## 五、内置 DeepSeek 对话（1.0.6 起）
 

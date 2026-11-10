@@ -1,0 +1,102 @@
+/* Desktop-only presentation. The upstream plugin keeps its host theme. */
+.bf-desktop, .bf-settings-window { --bf-text: #243c50; --bf-muted: #748797; --bf-blue: #387d9f; --bf-line: #e2ebef; --bf-soft: #edf5f8; font-family: 'Segoe UI', 'Microsoft YaHei UI', sans-serif; }
+.bf-settings-window { background: #f4f7fb; padding: 30px 28px 20px; }
+.bf-desktop-settings { max-width: 700px; margin: 0 auto; }
+.bf-home-header { display: flex; align-items: center; gap: 16px; position: relative; padding: 8px 0 26px; }
+.bf-home-mark { width: 64px; height: 68px; flex-shrink: 0; display: grid; place-items: center; font-size: 37px; border-radius: 22px; background: #e2eff6; border: 1px solid #d4e6ef; transform: rotate(-5deg); }
+.bf-home-header h1 { font-size: 25px; font-weight: 650; letter-spacing: -.7px; margin: 2px 0 4px; }
+.bf-home-header p { color: var(--bf-muted); font-size: 12px; margin: 0; }
+.bf-home-header .bf-eyebrow { color: #51829a; font-size: 10px; letter-spacing: 1.5px; margin-bottom: 4px; }
+.bf-saved { margin-left: auto; align-self: flex-start; font-size: 10px; white-space: nowrap; display: flex; align-items: center; gap: 5px; color: #638d80; padding-top: 7px; }
+.bf-saved:before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #80aa99; }
+.bf-settings-tabs { display: flex; gap: 5px; padding: 5px; background: #e9eff4; border: 1px solid #e1e9ef; border-radius: 14px; margin-bottom: 23px; }
+.bf-settings-tabs button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 8px; background: transparent; border: 1px solid transparent; border-radius: 10px; color: #7d8b98; font-weight: 600; }
+.bf-settings-tabs button:hover { background: #f7fafd; border-color: transparent; }
+.bf-settings-tabs button[aria-selected=true] { background: #fff; color: #2f708f; border-color: #e0e8ef; box-shadow: 0 2px 5px #29476206; }
+.bf-tab-number { font-size: 9px; opacity: .6; font-weight: 500; }
+.bf-setting-card { background: #fff; border: 1px solid #e2eaf0; border-radius: 18px; padding: 23px 24px; margin-bottom: 16px; box-shadow: 0 3px 12px #203e7003; }
+.bf-section-title { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 17px; }
+.bf-section-title > span { color: #74a2b7; background: #edf5f8; border-radius: 9px; padding: 6px 7px; font-size: 10px; margin-top: 1px; }
+.bf-setting-card h2 { font-size: 16px; font-weight: 650; margin: 0 0 4px; letter-spacing: .2px; }
+.bf-section-title p { margin: 0; color: var(--bf-muted); font-size: 11px; }
+.bf-setting-card .bf-field { padding: 13px 0; gap: 18px; font-size: 12px; }
+.bf-setting-card .bf-field + .bf-field { border-top: 1px solid #f1f5f7; }
+.bf-setting-card .bf-field select { max-width: 58%; min-width: 120px; padding: 8px 10px; border: 1px solid #e1e9ee; border-radius: 9px; background: #fafcfd; color: #3c596c; }
+.bf-setting-card .bf-field input[type=checkbox] { width: 32px; height: 18px; accent-color: #4a8ca7; }
+.bf-setting-card .bf-field input[type=range] { appearance: none; -webkit-appearance: none; accent-color: #6a9eb6; height: 4px; border-radius: 4px; background: #e3edf2; margin: 15px 0 4px; }
+.bf-setting-card .bf-field input[type=range]::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%; background: #6a9eb6; border: 3px solid #fff; box-shadow: 0 0 0 1px #92b4c5; }
+.bf-setting-card .bf-field output { padding: 1px 7px; border-radius: 6px; color: #417b98; background: #f0f6f9; font-size: 11px; }
+.bf-setting-card fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.bf-setting-card legend { font-size: 12px; color: #668395; padding-bottom: 8px; }
+.bf-setting-card .bf-help { line-height: 1.8; font-size: 11px; color: #7f919e; }
+.bf-setting-card .bf-button-row { gap: 8px; margin-top: 16px; }
+.bf-setting-card .bf-button-row button { border-color: #dce9ef; color: #4e7f98; background: #f7fbfd; font-size: 12px; padding: 9px 13px; }
+.bf-setting-card .bf-button-row button:first-child { background: #3e7e9c; border-color: #3e7e9c; color: #fff; }
+.bf-setting-card button:disabled { opacity: .4; cursor: default; }
+.bf-setting-card input:not([type=range]):not([type=checkbox]):not([type=file]) { border: 1px solid #e0e9ef; border-radius: 9px; color: #3c596c; background: #fafcfd; padding: 9px 10px; min-width: 0; max-width: 58%; }
+.bf-setting-card .bf-deepseek-key { flex-direction: column; align-items: stretch; gap: 8px; }
+.bf-setting-card .bf-deepseek-key input { width: 100%; max-width: 100% !important; font-family: 'Consolas', monospace; }
+.bf-setting-card details { border: 1px solid #e5edf2; background: #fbfdfe; border-radius: 11px; padding: 10px 12px; margin: 16px 0; }
+.bf-setting-card summary { cursor: pointer; color: #68899d; font-size: 12px; }
+.bf-settings-foot { display: flex; justify-content: space-between; gap: 12px; color: #a3afb9; font-size: 10px; padding: 8px 3px 3px; }
+.bf-role-library h3 { display: none; }
+.bf-settings-window .bf-role-card { background: #fbfdfe; border-color: #e3edf2; }
+.bf-desktop .bf-widget { gap: 9px; }
+.bf-desktop .bf-widget > .bf-stage { width: min(var(--bf-role-width, 100%), 100%); max-width: 100%; }
+.bf-desktop .bf-chat { width: min(360px, 100%); background: #fcfdff; border: 1px solid #dbe8ee; border-radius: 19px 19px 7px 19px; box-shadow: 0 9px 28px #22466514, 0 1px 4px #22466508; gap: 0; overflow: hidden; flex: 0 1 auto; min-height: 0; }
+.bf-desktop .bf-chat-toolbar { display: flex; align-items: center; gap: 4px; padding: 12px 13px 10px; flex-shrink: 0; }
+.bf-desktop .bf-chat-toolbar > div { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0; }
+.bf-desktop .bf-chat-toolbar strong { font-size: 12px; color: #335b72; letter-spacing: .4px; white-space: nowrap; }
+.bf-desktop .bf-chat-toolbar span { color: #93a3b0; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bf-desktop .bf-chat-toolbar i { width: 6px; height: 6px; background: #89b29f; border-radius: 50%; flex-shrink: 0; }
+.bf-desktop .bf-chat-toolbar i[data-busy=true] { background: #82adc4; animation: bf-chat-pulse 1.2s infinite; }
+.bf-desktop .bf-chat-toolbar button { color: #8297a7; font-size: 10px; padding: 2px 4px; background: transparent; border: 0; }
+.bf-desktop .bf-chat-bubble { max-height: min(350px, 38vh); border: 0; border-radius: 0; background: transparent; box-shadow: none; padding: 0 13px 5px; scrollbar-width: thin; scrollbar-color: #d9e6ed transparent; }
+.bf-desktop .bf-chat-question { margin: 9px 0 10px auto; padding: 8px 10px; border-radius: 12px 12px 3px 12px; background: #edf4f8; color: #50788f; width: fit-content; max-width: 92%; font-size: 12px; line-height: 1.7; }
+.bf-desktop .bf-chat-reply { padding: 0 2px 9px; }
+.bf-desktop .bf-chat-answer { font-size: 12.5px; line-height: 1.85; color: #3c5263; }
+.bf-desktop .bf-chat-usage { font-size: 9px; color: #a5b2bc; }
+.bf-desktop .bf-chat-copy, .bf-desktop .bf-chat-bottom-actions button { padding: 3px 5px; border: 0; background: transparent; color: #7d9aad; font-size: 10px; }
+.bf-desktop .bf-chat-copy { margin-top: 5px; }
+.bf-desktop .bf-chat-bottom-actions { display: flex; gap: 6px; align-items: center; border-top: 1px solid #edf2f5; margin-top: 4px; padding: 7px 0 2px; }
+.bf-desktop .bf-chat-bottom-actions .bf-chat-clear { margin-left: auto; }
+.bf-desktop .bf-chat-welcome { margin: 0; padding: 1px 14px 12px; color: #9aabb7; font-size: 11px; }
+.bf-desktop .bf-chat-form { display: block; padding: 0; border: 0; border-top: 1px solid #edf2f6; border-radius: 0; box-shadow: none; background: #fff; }
+.bf-desktop .bf-chat-form:focus-within { border-top-color: #cfe0eb; box-shadow: none; }
+.bf-desktop .bf-chat-form textarea { display: block; width: 100%; padding: 12px 14px 5px; font: 12px/1.7 'Segoe UI', 'Microsoft YaHei UI', sans-serif; min-height: 43px; max-height: 96px; }
+.bf-desktop .bf-chat-form textarea::placeholder { color: #a3b2bd; }
+.bf-desktop .bf-chat-compose-actions { display: flex; align-items: center; gap: 8px; padding: 5px 9px 9px; }
+.bf-desktop .bf-chat-compose-actions .bf-chat-search-toggle { display: flex; gap: 4px; width: auto; height: 25px; padding: 4px 6px; border-radius: 7px; color: #90a2af; font-size: 10px; }
+.bf-desktop .bf-chat-search-toggle svg { width: 14px; height: 14px; }
+.bf-desktop .bf-chat-search-toggle[aria-pressed=true] { background: #eaf4f8; color: #4f8da9; }
+.bf-desktop .bf-chat-key-hint { flex: 1; text-align: right; color: #b2bec6; font-size: 9px; padding-right: 3px; }
+.bf-desktop .bf-chat .bf-chat-send { font-size: 11px; min-width: 58px; padding: 7px 10px; border-radius: 9px; background: #4f89a4; }
+.bf-desktop .bf-chat .bf-chat-send:disabled { background: #dce8ef; color: #a0b3c0; opacity: 1; }
+.bf-desktop .bf-chat .bf-chat-stop { background: #8b9aaa; }
+.bf-desktop .bf-widget .bf-chat-toggle { position: absolute; right: 1px; bottom: 12px; width: 28px; height: 28px; background: #fcfeffeb; border-color: #d7e7ef; color: #7b9eb1; box-shadow: 0 2px 8px #2246650d; }
+.bf-desktop .bf-widget .bf-chat-toggle svg { width: 15px; height: 15px; }
+.bf-thinking-dots { color: #7ea7bc; letter-spacing: 2px; margin-right: 6px; }
+.bf-provider-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 0 0 20px; }
+.bf-provider-tabs button { display: flex; justify-content: center; align-items: center; gap: 6px; padding: 9px 5px; font-size: 11px; color: #7d94a2; background: #f7fafc; border-color: #e1ebf0; }
+.bf-provider-tabs button[aria-pressed=true] { background: #edf6fa; color: #347b9c; border-color: #9fc3d4; }
+.bf-provider-tabs i { width: 4px; height: 4px; border-radius: 50%; background: #c9d6dd; }.bf-provider-tabs i[data-configured=true] { background: #80ab98; }
+.bf-provider-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+.bf-provider-heading > div { display: flex; align-items: center; gap: 10px; }.bf-provider-heading strong { font-size: 15px; }.bf-provider-heading span { color: #91a2ad; font-size: 10px; }
+.bf-provider-heading button { color: #4e879e; background: #f3f9fb; font-size: 10px; padding: 6px 9px; }
+.bf-setting-card .bf-api-url { flex-direction: column; align-items: stretch; gap: 8px; }.bf-setting-card .bf-api-url input { max-width: 100% !important; width: 100%; font-size: 11px; }
+.bf-memory-panel { border-top: 1px solid #e4edf1; margin-top: 22px; padding-top: 18px; }.bf-memory-panel > strong { font-size: 12px; }.bf-memory-path { font-size: 10px; color: #9cabb6; overflow-wrap: anywhere; }
+.bf-desktop .bf-chat-provider { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 13px 9px; color: #9aacb7; font-size: 9px; }
+.bf-desktop .bf-chat-provider label { display: flex; align-items: center; gap: 6px; }.bf-desktop .bf-chat-provider select { border: 1px solid #e3edf2; border-radius: 6px; padding: 2px 5px; background: #f5f9fb; color: #5b8298; font-size: 10px; }
+@media(max-width: 480px) { .bf-settings-window { padding: 20px 15px; } .bf-home-header { gap: 12px; } .bf-home-header h1 { font-size: 22px; } .bf-home-mark { width: 52px; height: 58px; font-size: 31px; } .bf-saved { position: absolute; right: 0; top: -8px; font-size: 9px; } .bf-setting-card { padding: 20px 17px; } .bf-settings-tabs button { gap: 5px; } }
+
+/* Persona controls share the existing settings theme. */
+.bf-chat-provider select { max-width: 180px; }
+
+.bf-compose-window { height: 100%; padding: 0; background: #fff; border: 1px solid #cfe0eb; border-radius: 10px; overflow: hidden; }
+.bf-compose-window form { height: 100%; display: flex; flex-direction: column; }
+.bf-compose-window textarea { flex: 1; min-height: 0; resize: none; border: 0; outline: none !important; box-shadow: none; padding: 10px 13px; color: #3c5263; background: #fff; font: 12px/1.7 'Segoe UI', 'Microsoft YaHei UI', sans-serif; }
+.bf-compose-window footer { display: flex; align-items: center; gap: 8px; padding: 4px 9px 8px; }
+.bf-compose-window footer span { flex: 1; font-size: 9px; color: #9aabb7; }
+.bf-compose-window footer button { padding: 5px 10px; font-size: 11px; }
+.bf-compose-window footer button[type=submit] { color: #fff; background: #4f89a4; border-color: #4f89a4; }
+.bf-compose-window footer button:disabled { opacity: .45; }

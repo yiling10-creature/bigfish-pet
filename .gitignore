@@ -1,16 +1,16 @@
-# 依赖与产物
-node_modules/
+node_modules*/
 dist/
-out/
-*.zip
-
-# 构建生成的宠物页（含素材，绝不提交）
-shell/resources/pet.html
-
-# 启动器编译产物
+**/resources/pet.html
+**/resources/chat-input.html
 launcher/out/
-
-# 本地配置与日志
+memory/
+personas/
+*profile*/
 *.log
-bigfish-profile/
-.env
+.env*
+ai-settings.json
+deepseek.json
+zhipu.json
+qwen.json
+kimi.json
+desktop/artifacts/

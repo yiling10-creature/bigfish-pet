@@ -1,181 +1,41 @@
-# 大肥鱼桌宠 · BigFishPet
+# 大肥鱼普通对话版
 
-> ### ⚠️ 使用前必须先安装 `dsh-bigfish` 插件
->
-> 这个桌宠**不打包任何角色素材**，宠物形象与动作全部来自本机已安装的 [dsh-bigfish](https://github.com/gosomea/dsh-bigfish) 插件。没装插件，程序能启动但**看不到宠物**。
->
-> ```powershell
-> dsh plugin --profile web add dsh-bigfish
-> ```
->
-> 装完重启 DeepSeek Harness，再看[第一节：前置要求](#一前置要求必须先装-dsh-和插件)。
+独立的 Windows Electron 桌宠，保留普通 AI 对话、流式输出、停止、重试、联网搜索、按服务商保存的聊天记录和长期记忆。
 
-把 [dsh-bigfish](https://github.com/gosomea/dsh-bigfish) 的宠物搬到一个**独立的 Electron 窗口**里：无边框、透明、可置顶、点空白处自动穿透，不占用 DeepSeek Harness 的窗口。
+本分支已删除人设目录、编辑器、新增、保存、切换及对应 IPC/API。使用空白人设：普通聊天不注入身份或风格 system 提示词，不包含角色身份、语言风格、动作描写或篇幅限制。桌宠美术外观与聊天身份独立。
 
-> **本仓库不包含任何角色美术素材。**
-> 素材来自你自己机器上安装的 `dsh-bigfish` 插件，由程序在运行时读取。仓库里只有壳、启动器、构建脚本和文档。
+支持 DeepSeek、智谱、千问、Kimi。用户自行在设置 → 问答配置 API Key；仓库不提供密钥。正常聊天及记忆整理会调用所选服务商。
 
----
+## 素材
 
-## 一、前置要求（必须先装 DSH 和插件）
+仓库不分发角色美术。运行前需要本机已安装 dsh-bigfish 插件，或用 BIGFISH_PLUGIN_DIR 指定安装位置。程序运行时读取插件素材。代码采用 MIT；角色素材及第三方组件遵循各自许可，详见 NOTICE。
 
-这个桌宠**不是**开箱即用的独立应用 —— 它需要本机已经装好 DeepSeek Harness（DSH）以及 `dsh-bigfish` 插件，因为角色美术和数据都在插件里。
+## 开发
 
-### 1. 安装 DeepSeek Harness
-
-按官方说明安装 DSH（桌面版或 `dsh` CLI 均可）。装好后至少启动过一次，确保存在以下目录：
-
-```
-C:\Users\<你>\.dsh\profiles\<profile>\node_modules\dsh-bigfish\
-```
-
-### 2. 安装 dsh-bigfish 插件
+需要 Windows、Node.js 22.19+ 或 24+、pnpm，以及构建启动器所需的 .NET Framework 编译器。
 
 ```powershell
-# 装到 Web 界面用的 profile（把 web 换成你实际在用的 profile 名，如 desktop）
-dsh plugin --profile web add dsh-bigfish
-```
-
-装完重启 Harness，右下角能看到宠物即算成功。
-
-### 3. 验证插件位置
-
-本程序按下面的顺序查找插件，找不到就会弹提示（不会白屏）：
-
-| 顺序 | 路径 | 说明 |
-| --- | --- | --- |
-| 1 | `%BIGFISH_PLUGIN_DIR%` 环境变量 | 手动指定，方便调试 |
-| 2 | `%USERPROFILE%\.dsh\profiles\desktop\node_modules\dsh-bigfish` | 桌面版默认 |
-| 3 | `%USERPROFILE%\.dsh\profiles\web\node_modules\dsh-bigfish` | Web profile |
-| 4 | `%USERPROFILE%\.dsh\profiles\*\node_modules\dsh-bigfish` | 其余 profile 兜底 |
-
----
-
-## 二、素材是怎么读的
-
-**仓库里没有 pet.html，也没有任何 PNG/DSPET。** 角色素材由主进程在启动时解析，按顺序尝试：
-
-| 优先级 | 来源 | 内容 |
-| --- | --- | --- |
-| 1 | `BIGFISH_PET_ASSETS` 指定的目录 | 6 张 PNG（+ 可选 `playful.dshpet`） |
-| 2 | 已安装插件的 `lib/client.js` | 6 个 `data:image/png;base64,…` + 1 个 `UEsDBB…`（13 MB 扩展包 base64） |
-| 3 | 本地上游源码 `assets/sprites/*.png` | 6 张原始 PNG + `packs/playful/bundle.dshpet` |
-| — | 都没有 | 弹窗说明如何安装插件，然后退出（不会白屏） |
-
-读到的内容通过 preload 注入页面全局 `window.__BIGFISH_ASSETS__`，渲染层的 `sprite-assets` 从它取图，不再依赖构建期内联。
-
-映射关系（**顺序固定，不要改**，详见 `docs/素材来源与读取.md`）：
-
-```
-bigfish-atlas.png    bigfish-motions.png   bigfish-signs.png
-bigfish-work.png     bigfish-quiet.png     bigfish-daily.png
-```
-
----
-
-## 三、构建
-
-一条命令（推荐）：
-
-```powershell
-pwsh -File scripts\build-package.ps1
-```
-
-它会依次完成：编译 `launcher\Launcher.cs` → 生成 `shell\resources\pet.html`（缺省或体积异常时）→ `electron-builder` 打包 → **校验 zip 里确实带上了新编译的启动器**。
-
-分步做也一样：
-
-```powershell
-# 1) 安装壳的依赖
-cd shell
+cd desktop
+pnpm install --frozen-lockfile
+pnpm check
+pnpm test
+pnpm build
+cd ../shell
 npm ci
-
-# 2) 编译启动器（C#，需要 .NET Framework 的 csc.exe）
-cd ..
-pwsh -File launcher\build-launcher.ps1
-
-# 3) 生成 pet.html（从上游源码构建，产物不进仓库）
-pwsh -File scripts\build-pet.ps1
-
-# 4) 打包并校验
-pwsh -File scripts\build-package.ps1 -SkipLauncher -SkipPet
-```
-
-`scripts\build-pet.ps1` 会做四件事：浅克隆上游 `dsh-bigfish` 到临时目录 → 应用 `patches\` 下的素材剥离补丁 → 跑上游的 `scripts/build-desktop.ts` → 校验产物体积（> 3 MB 视为失败）。
-
-> ⚠️ **启动器必须先编译再打包**。`electron-builder` 的 `extraFiles` 固定从 `launcher\out\BigFishPetLauncher.exe` 取文件，编了新版本的 `Launcher.cs` 却没重新编译，打出来的包里还是旧的 —— 这个坑踩过一次。
-
-> 产物 `shell\resources\pet.html`、`dist\`、`node_modules\` 全部在 `.gitignore` 里，**不要提交**。
-
-## 四、运行
-
-```powershell
-cd shell
+npm test
 npm start
 ```
 
-| 操作 | 说明 |
-| --- | --- |
-| 左键托盘图标 | 显示 / 隐藏 |
-| 右键托盘图标 | 置顶、自动演示、手动状态、重置位置、设置、退出 |
-| 点宠物身体 | 交互（空白区域自动穿透到桌面） |
-| 设置窗口 | 角色库、动作档位、台词、鞭策开关 |
+完整构建：在仓库根目录执行 `pwsh -File scripts/build-package.ps1`。
 
-打包后请双击 **`大肥鱼桌宠.exe`**（启动器），不要直接双击 `BigFishPet.exe`：
+实际窗口离线检查：安装 shell 依赖后，在 desktop 中执行 `node scripts/test-electron.cjs`。
 
-启动器会先正常拉起核心，**若 1.5 秒内退出则自动加 `--no-sandbox` 重试**。部分 Windows 环境下 Chromium 沙箱初始化会失败（退出码 `0x80000003`），必须靠这个重试才能起来 —— 直接双击核心 exe 就会"没反应"。
+## 独立资料
 
-## 五、内置 DeepSeek 对话（1.0.6 起）
+默认使用 %APPDATA%/BigFishChat；回退目录为 ~/.bigfish-chat。不会自动导入原版的 API 配置和聊天。记忆位于源目录 memory/（打包后为程序旁 repo/memory/）。这些运行资料均不应提交。
 
-桌宠带了一个可选的对话面板，用自己的 DeepSeek API Key 即可让宠物直接回答问题、必要时联网搜索。
+## 隐私与发布
 
-| 项 | 说明 |
-| --- | --- |
-| 模型 | `deepseek-flash`（默认）、`deepseek-v4-pro` |
-| API 地址 | `https://api.deepseek.com`，可用环境变量 `BIGFISH_DEEPSEEK_BASE` 覆盖 |
-| Key 存放 | `%APPDATA%\BigFishPet\deepseek.json`，**经操作系统 `safeStorage` 加密后**存 base64，不落明文 |
-| 日志 | 只记 `DEEPSEEK_KEY_SAVED` / `DEEPSEEK_KEY_DECRYPT_FAILED` 这类事件，**不打印 Key** |
-| 联网范围 | 除 `api.deepseek.com` 外只做检索请求，不把 Key 发给第三方 |
-| 未配置时 | 面板提示去设置里填 Key，宠物其余功能不受影响 |
+仓库不含角色动画图集、原项目个人配置、密钥、聊天记录和长期记忆。运行中产生的资料、依赖及构建产物已通过 .gitignore 排除。提交前请检查暂存内容。
 
-IPC 侧做了来源校验（`trustedConfigSender`），只有主窗口和设置窗口能读写配置，第三方页面调不到。想彻底关掉对话功能，不填 Key 即可。
-
-## 六、当前状态
-
-| 项 | 状态 |
-| --- | --- |
-| Electron 壳（透明/置顶/穿透/托盘/设置） | ✅ 可用 |
-| 便携版打包 + C# 启动器 | ✅ 可用 |
-| 构建脚本（从上游生成 pet.html） | ✅ 可用 |
-| **素材运行时读取（不再内嵌）** | ✅ 已实现（1.0.7 起） |
-
-改造效果（同一台机器实测）：
-
-| 项 | 改造前 | 改造后 |
-| --- | --- | --- |
-| `pet.html` | 34.61 MB（内联 6 张图集 + 扩展包） | **0.39 MB**（零内联） |
-| `app.asar` | 34.88 MB | **0.68 MB** |
-| 便携版 zip | 182 MB | **147 MB** |
-
-zip 仍接近 150 MB，是因为 Electron 运行时本身占大头（解压后约 250 MB），这部分与素材无关。**关键是安装包里已经不含任何角色美术**，素材全部在运行时从插件读取。
-
-## 七、许可与声明
-
-- 本仓库代码：MIT（见 `LICENSE`）
-- **角色美术**：归原权利人所有。`NOTICE` 保留了上游声明原文 —— *"The code MIT license does not license underlying third-party character rights."*
-- 本程序只在本地读取用户已安装插件中的素材，**不随仓库或 Release 分发**。
-- 若要商用或大规模分发，请自行取得素材权利人的授权。
-
-## 八、常见问题
-
-**双击没反应 / 一闪而过？**
-看 `%APPDATA%\BigFishPet\` 下有没有日志；启动器会在 `bigfish-profile\` 里写 debug 日志。
-
-**提示找不到插件？**
-先按第一节装 `dsh-bigfish`，或用 `BIGFISH_PLUGIN_DIR` 直接指向插件目录再启动。
-
-**SmartScreen 警告"未知发布者"？**
-exe 未做代码签名，属正常现象。自用点"更多信息 → 仍要运行"。
-
-**能不能反映我正在跑的任务？**
-当前是演示模式（自动轮播 待机/思考/输出/工具执行/等待确认/完成）。接实时任务需要额外对接 DSH 会话接口，尚未实现。
+测试范围和尚未完成的验证见 [VALIDATION.md](VALIDATION.md)。

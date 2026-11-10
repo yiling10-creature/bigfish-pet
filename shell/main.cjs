@@ -2,15 +2,17 @@ const { app, BrowserWindow, dialog, ipcMain, Menu, Tray, nativeImage, screen, sh
 const path = require('node:path');
 const fs = require('node:fs');
 const { createDeepSeek } = require('./deepseek.cjs');
+const { createPetFocus } = require('./window-focus.cjs');
+const { createChatInput } = require('./chat-input.cjs');
 
 const os = require('node:os');
 function chooseUserData() {
   const candidates = [];
   if (process.env.BIGFISH_USER_DATA) candidates.push(process.env.BIGFISH_USER_DATA);
-  try { candidates.push(path.join(app.getPath('appData'), 'BigFishPet')); } catch { /* optional */ }
-  candidates.push(path.join(os.homedir(), '.bigfish-pet'));
-  try { candidates.push(path.join(app.getPath('temp'), 'BigFishPet')); } catch { /* optional */ }
-  try { candidates.push(path.join(path.dirname(app.getPath('exe')), 'bigfish-profile')); } catch { /* optional */ }
+  try { candidates.push(path.join(app.getPath('appData'), 'BigFishChat')); } catch { /* optional */ }
+  candidates.push(path.join(os.homedir(), '.bigfish-chat'));
+  try { candidates.push(path.join(app.getPath('temp'), 'BigFishChat')); } catch { /* optional */ }
+  try { candidates.push(path.join(path.dirname(app.getPath('exe')), 'bigfish-chat-profile')); } catch { /* optional */ }
 
   for (const dir of candidates) {
     try {
@@ -44,19 +46,28 @@ const DEMO_STATES = [
 
 let win = null;
 let settingsWin = null;
+let petFocus = null;
 let tray = null;
 let visible = true;
-let alwaysOnTop = true;
-let autoDemo = true;
+const desktopStorePath = userData ? path.join(userData, 'desktop.json') : null;
+let desktopOptions = { alwaysOnTop: true, displayId: null };
+try {
+  const stored = JSON.parse(fs.readFileSync(desktopStorePath, 'utf8'));
+  desktopOptions = { alwaysOnTop: stored.alwaysOnTop !== false,
+    displayId: Number.isInteger(stored.displayId) ? stored.displayId : null };
+} catch { /* First run uses sensible defaults. */ }
+let alwaysOnTop = desktopOptions.alwaysOnTop;
+let autoDemo = false;
 let manualState = 'idle';
 let quitting = false;
 let ignoreMouse = true;
 let hotspots = [];
 let hoverLock = false;
 let hoverLockOutsideAt = 0;
+let cursorNear = false;
 
 const debugLogPath = process.env.BIGFISH_DEBUG_LOG;
-const bootTracePath = path.join(os.tmpdir(), 'bigfish-boot.log');
+const bootTracePath = path.join(os.tmpdir(), 'bigfish-chat-boot.log');
 function writeTrace(...args) {
   const line = `${new Date().toISOString()} ${args.map(value => (typeof value === 'string' ? value : JSON.stringify(value))).join(' ')}\n`;
   try {
@@ -89,7 +100,9 @@ function logLine(...args) {
   }
 }
 
-const deepseek = userData ? createDeepSeek({ userData, log: logLine }) : null;
+const memoryDirectory = process.env.BIGFISH_MEMORY_DIR || (app.isPackaged
+  ? path.join(path.dirname(app.getPath('exe')), 'repo', 'memory') : path.join(__dirname, '..', 'memory'));
+const deepseek = userData ? createDeepSeek({ userData, memoryDirectory, log: logLine }) : null;
 
 // ---------------------------------------------------------------------------
 // 宠物素材：不随安装包分发，运行时从本机已安装的 dsh-bigfish 插件读取。
@@ -240,9 +253,36 @@ if (!app.requestSingleInstanceLock()) {
   app.setAppUserModelId('studio.bigfish.desktop-pet');
 
   const workArea = () => {
-    const { x, y, width, height } = screen.getPrimaryDisplay().workArea;
+    const display = screen.getAllDisplays().find(d => d.id === desktopOptions.displayId) || screen.getPrimaryDisplay();
+    const { x, y, width, height } = display.workArea;
     return { x, y, width, height };
   };
+
+  function desktopStatus() {
+    return { ...desktopOptions, displays: screen.getAllDisplays().map((d, i) => ({ id: d.id,
+      label: `${d.label || `显示器 ${i + 1}`} · ${d.size.width} × ${d.size.height}` })) };
+  }
+  function saveDesktop(patch) {
+    const next = { ...desktopOptions };
+    if (typeof patch?.alwaysOnTop === 'boolean') next.alwaysOnTop = patch.alwaysOnTop;
+    if (patch && Object.hasOwn(patch, 'displayId')) {
+      if (patch.displayId !== null && !screen.getAllDisplays().some(d => d.id === patch.displayId)) throw new Error('显示器已断开。');
+      next.displayId = patch.displayId;
+    }
+    if (desktopStorePath) {
+      fs.writeFileSync(`${desktopStorePath}.tmp`, JSON.stringify(next));
+      fs.renameSync(`${desktopStorePath}.tmp`, desktopStorePath);
+    }
+    desktopOptions = next; alwaysOnTop = next.alwaysOnTop;
+    if (win && !win.isDestroyed()) { win.setAlwaysOnTop(alwaysOnTop, 'floating'); win.setBounds(workArea()); }
+    refreshTray(); return desktopStatus();
+  }
+  function guardNavigation(window) {
+    window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    window.webContents.on('will-navigate', event => event.preventDefault());
+  }
+
+  const chatInput = createChatInput({ BrowserWindow, screen, getOwner: () => win, preload: path.join(__dirname, 'preload.cjs'), html: path.join(__dirname, 'resources', 'chat-input.html'), guardNavigation });
 
   function sendCommand(command) {
     if (win && !win.isDestroyed() && !win.webContents.isLoading()) {
@@ -269,7 +309,8 @@ if (!app.requestSingleInstanceLock()) {
       height,
       minWidth: 420,
       minHeight: 560,
-      title: '大肥鱼桌宠 · 设置',
+      title: '肥肥鱼桌宠 · 设置',
+      skipTaskbar: true,
       backgroundColor: '#fafcff',
       autoHideMenuBar: true,
       show: false,
@@ -283,6 +324,8 @@ if (!app.requestSingleInstanceLock()) {
     });
 
     settingsWin.setMenuBarVisibility(false);
+    settingsWin.setSkipTaskbar(true);
+    guardNavigation(settingsWin);
     settingsWin.loadFile(path.join(__dirname, 'resources', 'pet.html'), { hash: 'settings' });
     logLine('SETTINGS_LOAD');
     settingsWin.webContents.on('did-finish-load', () => logLine('SETTINGS_DID_FINISH_LOAD'));
@@ -311,6 +354,7 @@ if (!app.requestSingleInstanceLock()) {
       win.showInactive();
       updateHover();
     } else {
+      chatInput.cancel();
       win.hide();
     }
     refreshTray();
@@ -327,7 +371,7 @@ if (!app.requestSingleInstanceLock()) {
     if (!win || win.isDestroyed() || !hotspots.length) return false;
     const bounds = win.getContentBounds();
     const cursor = screen.getCursorScreenPoint();
-    return hotspots.some(spot =>
+    return hotspots.some(spot => !spot.coarse &&
       cursor.x >= bounds.x + spot.x &&
       cursor.x <= bounds.x + spot.x + spot.w &&
       cursor.y >= bounds.y + spot.y &&
@@ -337,6 +381,10 @@ if (!app.requestSingleInstanceLock()) {
 
   function updateHover() {
     if (!win || win.isDestroyed() || !visible || !win.isVisible()) return;
+    const bounds = win.getContentBounds(), cursor = screen.getCursorScreenPoint();
+    const near = hotspots.some(s => cursor.x >= bounds.x + s.x - 50 && cursor.x <= bounds.x + s.x + s.w + 50
+      && cursor.y >= bounds.y + s.y - 50 && cursor.y <= bounds.y + s.y + s.h + 50);
+    if (near !== cursorNear) { cursorNear = near; sendCommand({ type: 'cursor-near', near }); }
     const inside = cursorInsideHotspots();
     if (!inside && hoverLock) {
       const now = Date.now();
@@ -356,7 +404,7 @@ if (!app.requestSingleInstanceLock()) {
     if (!tray) return;
     tray.setContextMenu(Menu.buildFromTemplate([
       {
-        label: '显示大肥鱼',
+        label: '显示肥肥鱼',
         type: 'checkbox',
         checked: visible,
         click: item => setVisible(item.checked),
@@ -366,9 +414,7 @@ if (!app.requestSingleInstanceLock()) {
         type: 'checkbox',
         checked: alwaysOnTop,
         click: item => {
-          alwaysOnTop = item.checked;
-          if (win && !win.isDestroyed()) win.setAlwaysOnTop(alwaysOnTop, 'floating');
-          refreshTray();
+          try { saveDesktop({ alwaysOnTop: item.checked }); } catch (error) { logLine('DESKTOP_SAVE_FAILED', error.message); }
         },
       },
       { type: 'separator' },
@@ -401,14 +447,14 @@ if (!app.requestSingleInstanceLock()) {
       { label: '打开设置', click: () => openSettings() },
       { label: '重置位置', click: () => { setVisible(true); sendCommand({ type: 'reset-position' }); } },
       { type: 'separator' },
-      { label: '退出大肥鱼', click: () => { quitting = true; app.quit(); } },
+      { label: '退出肥肥鱼', click: () => { quitting = true; app.quit(); } },
     ]));
   }
 
   function createWindow() {
     win = new BrowserWindow({
       ...workArea(),
-      title: '大肥鱼桌宠',
+      title: '肥肥鱼桌宠',
       frame: false,
       transparent: true,
       backgroundColor: '#00000000',
@@ -419,26 +465,29 @@ if (!app.requestSingleInstanceLock()) {
       maximizable: false,
       fullscreenable: false,
       skipTaskbar: true,
+      focusable: false,
       show: false,
-      alwaysOnTop: true,
+      alwaysOnTop,
       webPreferences: {
         preload: path.join(__dirname, 'preload.cjs'),
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
         spellcheck: false,
-        backgroundThrottling: false,
+        backgroundThrottling: true,
       },
     });
 
+    petFocus = createPetFocus(win, () => sendCommand({ type: 'chat-keyboard-ended' }));
     win.setMenuBarVisibility(false);
-    win.setAlwaysOnTop(true, 'floating');
+    guardNavigation(win);
+    win.setAlwaysOnTop(alwaysOnTop, 'floating');
     win.setIgnoreMouseEvents(true);
     ignoreMouse = true;
     win.loadFile(path.join(__dirname, 'resources', 'pet.html'));
     logLine('LOAD_FILE');
 
-    win.webContents.on('did-finish-load', () => logLine('DID_FINISH_LOAD'));
+    win.webContents.on('did-finish-load', () => { logLine('DID_FINISH_LOAD'); if (autoDemo) sendCommand({ type: 'auto', enabled: true }); });
     win.webContents.on('did-fail-load', (_event, code, description) => {
       logLine('LOAD_FAILED', code, description);
     });
@@ -468,6 +517,7 @@ if (!app.requestSingleInstanceLock()) {
         y: Number(spot?.y),
         w: Number(spot?.w),
         h: Number(spot?.h),
+        coarse: spot?.coarse === true,
       }))
       .filter(spot => [spot.x, spot.y, spot.w, spot.h].every(Number.isFinite) && spot.w > 0 && spot.h > 0);
     updateHover();
@@ -478,6 +528,22 @@ if (!app.requestSingleInstanceLock()) {
     hoverLock = Boolean(locked);
     hoverLockOutsideAt = 0;
     updateHover();
+  });
+
+  ipcMain.handle('desktop-pet:chat-input-open', (event, payload) => {
+    if (!win || event.sender !== win.webContents) throw new Error('输入入口不可用。');
+    return chatInput.open(payload);
+  });
+  ipcMain.handle('desktop-pet:chat-input-read', event => chatInput.read(event.sender));
+  ipcMain.on('desktop-pet:chat-input-update', (event, value) => chatInput.update(event.sender, value));
+  ipcMain.on('desktop-pet:chat-input-ready', event => chatInput.ready(event.sender));
+  ipcMain.on('desktop-pet:chat-input-finish', (event, result) => chatInput.finish(event.sender, result));
+  ipcMain.on('desktop-pet:chat-input-cancel', event => { if (win && event.sender === win.webContents) chatInput.cancel(); });
+
+  ipcMain.handle('desktop-pet:keyboard-focus', (event, enabled) => {
+    if (!win || event.sender !== win.webContents) return false;
+    if (enabled === true) return false;
+    return petFocus?.request(false) ?? false;
   });
 
   ipcMain.on('desktop-pet:open-settings', event => {
@@ -497,39 +563,96 @@ if (!app.requestSingleInstanceLock()) {
     );
   }
 
-  ipcMain.handle('deepseek:status', event => {
+  ipcMain.handle('desktop-pet:desktop-status', event => {
+    if (!trustedConfigSender(event)) throw new Error('unauthorized');
+    return desktopStatus();
+  });
+  ipcMain.handle('desktop-pet:desktop-update', (event, patch) => {
+    if (!trustedConfigSender(event)) throw new Error('unauthorized');
+    return saveDesktop(patch);
+  });
+  ipcMain.on('desktop-pet:reset-position', event => {
+    if (trustedConfigSender(event)) { setVisible(true); sendCommand({ type: 'reset-position' }); }
+  });
+  ipcMain.on('desktop-pet:chat-started', event => {
+    if (!win || event.sender !== win.webContents) return;
+    autoDemo = false; refreshTray();
+  });
+
+  ipcMain.handle('desktop-pet:save-file', async (event, filename, bytes) => {
+    if (!trustedConfigSender(event)) return { ok: false, message: 'unauthorized' };
+    if (!(bytes instanceof Uint8Array) || bytes.byteLength > 128 * 1024 * 1024 || !bytes.byteLength) {
+      return { ok: false, message: '导出文件大小不正确。' };
+    }
+    const name = path.basename(String(filename || '')).replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+    const extension = name.endsWith('.dshpet') ? 'dshpet' : name.endsWith('.zip') ? 'zip' : null;
+    if (!extension) return { ok: false, message: '不支持的导出格式。' };
+    try {
+      const owner = BrowserWindow.fromWebContents(event.sender);
+      const result = await dialog.showSaveDialog(owner, { title: '保存到本机', defaultPath: name,
+        filters: [{ name: extension === 'zip' ? '肥肥鱼备份' : '角色包', extensions: [extension] }] });
+      if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+      await fs.promises.writeFile(result.filePath, Buffer.from(bytes));
+      return { ok: true };
+    } catch (error) { logLine('SAVE_FILE_FAILED', error.message); return { ok: false, message: '文件未能保存，请选择其他位置重试。' }; }
+  });
+
+  ipcMain.handle('deepseek:status', (event, provider) => {
     if (!trustedConfigSender(event)) return { ok: false, message: 'unauthorized' };
     if (!deepseek) return { ok: false, message: 'DeepSeek 配置不可用。' };
-    return { ok: true, ...deepseek.status() };
+    try { return { ok: true, ...deepseek.status(provider) }; } catch (error) { return { ok: false, message: error.message }; }
   });
 
   ipcMain.handle('deepseek:save', (event, config) => {
     if (!trustedConfigSender(event)) return { ok: false, message: 'unauthorized' };
     if (!deepseek) return { ok: false, message: 'DeepSeek 配置不可用。' };
     try {
+      const saved = deepseek.save(config && typeof config === 'object' ? config : {});
+      sendCommand({ type: 'ai-config-changed' });
       return {
         ok: true,
-        ...deepseek.save({
-          key: typeof config?.key === 'string' ? config.key : '',
-          model: typeof config?.model === 'string' ? config.model : '',
-          pricing: config?.pricing,
-        }),
+        ...saved,
       };
     } catch (error) {
       return { ok: false, message: error.message };
     }
   });
 
-  ipcMain.handle('deepseek:clear', event => {
+  ipcMain.handle('deepseek:clear', (event, provider) => {
     if (!trustedConfigSender(event)) return { ok: false, message: 'unauthorized' };
     if (!deepseek) return { ok: false, message: 'DeepSeek 配置不可用。' };
-    return { ok: true, ...deepseek.clear() };
+    try { return { ok: true, ...deepseek.clear(provider) }; } catch (error) { return { ok: false, message: error.message }; }
   });
 
-  ipcMain.handle('deepseek:test', async event => {
+  ipcMain.handle('deepseek:test', async (event, provider) => {
     if (!trustedConfigSender(event)) return { ok: false, message: 'unauthorized' };
     if (!deepseek) return { ok: false, message: 'DeepSeek 配置不可用。' };
-    return deepseek.test();
+    try { return await deepseek.test(provider); } catch (error) { return { ok: false, message: error.message }; }
+  });
+
+  for (const [channel, operation] of [
+    ['catalog', () => deepseek.catalog()], ['history', (provider, scope) => deepseek.history(provider, scope)],
+    ['memory-status', (provider, scope) => deepseek.memoryStatus(provider, scope)],
+    ['compact-memory', (provider, scope) => deepseek.compactMemory(provider, true, scope)],
+  ]) ipcMain.handle(`deepseek:${channel}`, async (event, provider, scope) => {
+    if (!trustedConfigSender(event) || !deepseek) throw new Error('接口不可用。');
+    return operation(provider, scope);
+  });
+  ipcMain.handle('deepseek:select', (event, provider) => {
+    if (!trustedConfigSender(event) || !deepseek) throw new Error('接口不可用。');
+    const result = deepseek.select(provider); sendCommand({ type: 'ai-config-changed' }); return result;
+  });
+  ipcMain.handle('deepseek:clear-memory', (event, provider, scope) => {
+    if (!trustedConfigSender(event) || !deepseek) throw new Error('接口不可用。');
+    scope = 'default';
+    const result = deepseek.clearMemory(provider, scope);
+    sendCommand({ type: 'ai-memory-cleared', provider, scope: scope });
+    return result;
+  });
+  ipcMain.handle('deepseek:open-memory', (event, provider, scope) => {
+    if (!trustedConfigSender(event) || !deepseek) throw new Error('接口不可用。');
+    const info = deepseek.memoryStatus(provider, scope); if (info) shell.showItemInFolder(info.file);
+    return info;
   });
 
   ipcMain.on('deepseek:chat', (event, payload) => {
@@ -539,6 +662,9 @@ if (!app.requestSingleInstanceLock()) {
     const messages = Array.isArray(payload?.messages) ? payload.messages : [];
     deepseek.streamChat({
       id,
+      provider: payload?.provider,
+      scope: payload?.scope,
+      retryOf: typeof payload?.retryOf === 'string' ? payload.retryOf.slice(0, 80) : undefined,
       messages,
       search: Boolean(payload?.search),
       onEvent: message => {
@@ -591,7 +717,7 @@ if (!app.requestSingleInstanceLock()) {
         },
       },
       { type: 'separator' },
-      { label: '隐藏大肥鱼', click: () => setVisible(false) },
+      { label: '隐藏肥肥鱼', click: () => setVisible(false) },
       { type: 'separator' },
       { label: '退出', click: () => { quitting = true; app.quit(); } },
     ]).popup({ window: win });
@@ -600,7 +726,6 @@ if (!app.requestSingleInstanceLock()) {
   app.on('second-instance', () => {
     if (win && !win.isDestroyed()) {
       setVisible(true);
-      win.focus();
     }
   });
 
@@ -636,7 +761,7 @@ if (!app.requestSingleInstanceLock()) {
     createWindow();
     const icon = nativeImage.createFromPath(path.join(__dirname, 'resources', 'tray.png'));
     tray = new Tray(icon);
-    tray.setToolTip('大肥鱼桌宠');
+    tray.setToolTip('肥肥鱼桌宠');
     tray.on('click', () => setVisible(!visible));
     refreshTray();
     setInterval(updateHover, 80);
@@ -654,6 +779,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.on('before-quit', () => {
     quitting = true;
+    chatInput.dispose();
     deepseek?.dispose();
   });
   app.on('window-all-closed', () => {

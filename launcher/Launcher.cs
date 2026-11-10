@@ -9,8 +9,8 @@ using System.Windows.Forms;
 [assembly: AssemblyCompany("Yiling")]
 [assembly: AssemblyProduct("BigFish Desktop Pet")]
 [assembly: AssemblyCopyright("MIT - Yiling")]
-[assembly: AssemblyFileVersion("1.0.7.0")]
-[assembly: AssemblyVersion("1.0.7.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
 
 static class Program
 {
@@ -30,7 +30,7 @@ static class Program
 
     static string FindCore(string dir)
     {
-        string[] names = { "BigFishPet-Core.exe", "BigFishPet.exe", "大肥鱼桌宠-Core.exe" };
+        string[] names = { "BigFishChat.exe" };
         foreach (string name in names)
         {
             string candidate = Path.Combine(dir, name);
@@ -49,17 +49,10 @@ static class Program
         {
             Log("missing core exe");
             MessageBox.Show(
-                "找不到 BigFishPet.exe，请确认整个文件夹已完整解压。",
-                "大肥鱼桌宠",
+                "找不到 BigFishChat.exe，请确认整个文件夹已完整解压。",
+                "肥肥鱼桌宠",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
-            return;
-        }
-
-        string coreName = Path.GetFileNameWithoutExtension(exe);
-        if (Process.GetProcessesByName(coreName).Length > 0)
-        {
-            Log("core already running, exit");
             return;
         }
 
@@ -72,7 +65,7 @@ static class Program
             });
             Log("started normal pid=" + (first == null ? "null" : first.Id.ToString()));
 
-            if (first != null && first.WaitForExit(1500))
+            if (first != null && first.WaitForExit(1500) && first.ExitCode == unchecked((int)0x80000003))
             {
                 Log("normal exited code=" + first.ExitCode + ", retry without sandbox");
                 Thread.Sleep(400);
@@ -91,7 +84,7 @@ static class Program
         catch (Exception error)
         {
             Log("error " + error);
-            MessageBox.Show(error.Message, "大肥鱼桌宠", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(error.Message, "肥肥鱼桌宠", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 }

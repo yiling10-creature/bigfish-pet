@@ -1,6 +1,6 @@
 {
-  "name": "bigfish-desktop-pet",
-  "version": "1.0.7",
+  "name": "bigfish-chat-desktop",
+  "version": "1.1.0",
   "private": true,
   "description": "大肥鱼桌宠 — standalone Electron desktop pet for dsh-bigfish",
   "main": "main.cjs",
@@ -10,16 +10,18 @@
     "start": "electron .",
     "pack:dir": "electron-builder --win --dir",
     "pack:zip": "electron-builder --win zip",
-    "dist": "electron-builder --win portable"
+    "dist": "electron-builder --win portable",
+    "test": "node --test tests/*.test.cjs"
   },
   "devDependencies": {
     "electron": "44.9.2",
     "electron-builder": "26.15.3"
   },
   "build": {
-    "appId": "studio.bigfish.desktop-pet",
-    "productName": "大肥鱼桌宠",
-    "executableName": "BigFishPet",
+    "afterPack": "./after-pack.cjs",
+    "appId": "studio.bigfish.general-chat",
+    "productName": "大肥鱼普通对话版",
+    "executableName": "BigFishChat",
     "copyright": "Yiling · dsh-bigfish contributors · Code MIT",
     "asar": true,
     "directories": {
@@ -29,6 +31,8 @@
     "files": [
       "main.cjs",
       "deepseek.cjs",
+      "providers.cjs",
+      "memory.cjs",
       "web-search.cjs",
       "preload.cjs",
       "resources/pet.html",
@@ -36,7 +40,10 @@
       "resources/icon.png",
       "resources/LICENSE",
       "resources/NOTICE",
-      "resources/third-party-licenses.txt"
+      "resources/third-party-licenses.txt",
+      "window-focus.cjs",
+      "chat-input.cjs",
+      "resources/chat-input.html"
     ],
     "win": {
       "target": [

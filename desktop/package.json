@@ -1,0 +1,32 @@
+{
+  "name": "bigfish-desktop-ui",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "packageManager": "pnpm@11.7.0",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "build": "tsx scripts/build-desktop.ts",
+    "test": "node --import tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "proper-lockfile": "4.1.2"
+  },
+  "devDependencies": {
+    "@deepseek-ai/schemastery": "3.18.4",
+    "@playwright/test": "1.58.2",
+    "@types/node": "22.20.0",
+    "@types/proper-lockfile": "4.1.4",
+    "@types/react": "18.3.5",
+    "@types/react-dom": "18.3.0",
+    "esbuild": "0.28.2",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "tsx": "4.22.4",
+    "typescript": "6.0.3"
+  }
+}
